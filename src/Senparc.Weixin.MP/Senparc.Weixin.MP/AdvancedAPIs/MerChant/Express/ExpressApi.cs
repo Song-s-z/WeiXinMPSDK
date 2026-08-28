@@ -1,7 +1,7 @@
 ﻿#region Apache License Version 2.0
 /*----------------------------------------------------------------
 
-Copyright 2017 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
+Copyright 2026 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
 except in compliance with the License. You may obtain a copy of the License at
@@ -24,6 +24,8 @@ Detail: https://github.com/JeffreySu/WeiXinMPSDK/blob/master/license.md
 ----------------------------------------------------------------*/
 
 using System.Threading.Tasks;
+using Senparc.NeuChar;
+using Senparc.Weixin.CommonAPIs;
 using Senparc.Weixin.Entities;
 using Senparc.Weixin.MP.CommonAPIs;
 
@@ -32,6 +34,7 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
     /// <summary>
     /// 微小店接口，官方API：http://mp.weixin.qq.com/wiki/index.php?title=%E5%BE%AE%E4%BF%A1%E5%B0%8F%E5%BA%97%E6%8E%A5%E5%8F%A3
     /// </summary>
+    [NcApiBind(NeuChar.PlatformType.WeChat_OfficialAccount,true)]
     public static class ExpressApi
     {
         #region 同步方法
@@ -45,7 +48,7 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static AddExpressResult AddExpress(string accessToken, AddExpressData addExpressData)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/add?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/add?access_token={0}";
 
             return CommonJsonSend.Send<AddExpressResult>(accessToken, urlFormat, addExpressData);
         }
@@ -58,7 +61,7 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static WxJsonResult DeleteExpress(string accessToken, int templateId)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/del?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/del?access_token={0}";
 
             var data = new
             {
@@ -76,7 +79,7 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static WxJsonResult UpDateExpress(string accessToken, UpDateExpressData upDateExpressData)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/update?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/update?access_token={0}";
 
             return CommonJsonSend.Send<WxJsonResult>(accessToken, urlFormat, upDateExpressData);
         }
@@ -89,7 +92,7 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static GetByIdExpressResult GetByIdExpress(string accessToken, int templateId)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/getbyid?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/getbyid?access_token={0}";
 
             var data = new
             {
@@ -106,13 +109,12 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static GetAllExpressResult GetAllExpress(string accessToken)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/getall?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/getall?access_token={0}";
 
             return CommonJsonSend.Send<GetAllExpressResult>(accessToken, urlFormat, null, CommonJsonSendType.GET);
         }
         #endregion
 
-#if !NET35 && !NET40
         #region 异步方法
         /// <summary>
         /// 【异步方法】增加邮费模板
@@ -122,9 +124,9 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static async Task<AddExpressResult> AddExpressAsync(string accessToken, AddExpressData addExpressData)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/add?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/add?access_token={0}";
 
-            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<AddExpressResult>(accessToken, urlFormat, addExpressData);
+            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<AddExpressResult>(accessToken, urlFormat, addExpressData).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -135,14 +137,14 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static async Task<WxJsonResult> DeleteExpressAsync(string accessToken, int templateId)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/del?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/del?access_token={0}";
 
             var data = new
             {
                 template_id = templateId
             };
 
-            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<WxJsonResult>(accessToken, urlFormat, data);
+            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<WxJsonResult>(accessToken, urlFormat, data).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -153,9 +155,9 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static async Task<WxJsonResult> UpDateExpressAsync(string accessToken, UpDateExpressData upDateExpressData)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/update?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/update?access_token={0}";
 
-            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<WxJsonResult>(accessToken, urlFormat, upDateExpressData);
+            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<WxJsonResult>(accessToken, urlFormat, upDateExpressData).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -166,14 +168,14 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static async Task<GetByIdExpressResult> GetByIdExpressAsync(string accessToken, int templateId)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/getbyid?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/getbyid?access_token={0}";
 
             var data = new
             {
                 template_id = templateId
             };
 
-            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<GetByIdExpressResult>(accessToken, urlFormat, data);
+            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<GetByIdExpressResult>(accessToken, urlFormat, data).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -183,11 +185,11 @@ namespace Senparc.Weixin.MP.AdvancedAPIs
         /// <returns></returns>
         public static async Task<GetAllExpressResult> GetAllExpressAsync(string accessToken)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/express/getall?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/express/getall?access_token={0}";
 
-            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<GetAllExpressResult>(accessToken, urlFormat, null, CommonJsonSendType.GET);
+            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<GetAllExpressResult>(accessToken, urlFormat, null, CommonJsonSendType.GET).ConfigureAwait(false);
         }
         #endregion
-#endif
     }
 }
+

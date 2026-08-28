@@ -1,7 +1,7 @@
 ﻿#region Apache License Version 2.0
 /*----------------------------------------------------------------
 
-Copyright 2017 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
+Copyright 2026 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
 except in compliance with the License. You may obtain a copy of the License at
@@ -19,7 +19,7 @@ Detail: https://github.com/JeffreySu/WeiXinMPSDK/blob/master/license.md
 #endregion Apache License Version 2.0
 
 /*----------------------------------------------------------------
-    Copyright (C) 2017 Senparc
+    Copyright (C) 2026 Senparc
 
     文件名：CommonApi.Menu.Conditional
     文件功能描述：个性化自定义菜单接口
@@ -39,6 +39,10 @@ Detail: https://github.com/JeffreySu/WeiXinMPSDK/blob/master/license.md
     API：http://mp.weixin.qq.com/wiki/0/c48ccd12b69ae023159b4bfaa7c39c20.html
  */
 
+using Senparc.CO2NET.Extensions;
+using Senparc.CO2NET.Helpers.Serializers;
+using Senparc.NeuChar;
+using Senparc.Weixin.CommonAPIs;
 using Senparc.Weixin.Entities;
 using Senparc.Weixin.Helpers;
 using Senparc.Weixin.HttpUtility;
@@ -47,6 +51,7 @@ using Senparc.Weixin.MP.Entities.Menu;
 
 namespace Senparc.Weixin.MP.CommonAPIs
 {
+    [NcApiBind(NeuChar.PlatformType.WeChat_OfficialAccount,true)]
     public partial class CommonApi
     {
         /// <summary>
@@ -59,7 +64,7 @@ namespace Senparc.Weixin.MP.CommonAPIs
         {
             return ApiHandlerWapper.TryCommonApi(accessToken =>
              {
-                 var urlFormat = "https://api.weixin.qq.com/cgi-bin/menu/addconditional?access_token={0}";
+                 var urlFormat = Config.ApiMpHost + "/cgi-bin/menu/addconditional?access_token={0}";
                  //var jsonSetting = new JsonSetting(true);//设置成true会导致发布失败
                  var jsonSetting = new JsonSetting(false);
                  return CommonJsonSend.Send<CreateMenuConditionalResult>(accessToken, urlFormat, buttonData, timeOut: timeOut, jsonSetting: jsonSetting);
@@ -82,7 +87,7 @@ namespace Senparc.Weixin.MP.CommonAPIs
         {
             return ApiHandlerWapper.TryCommonApi(accessToken =>
             {
-                var url = string.Format("https://api.weixin.qq.com/cgi-bin/menu/trymatch?access_token={0}", accessToken.AsUrlData());
+                var url = string.Format(Config.ApiMpHost + "/cgi-bin/menu/trymatch?access_token={0}", accessToken.AsUrlData());
 
                 var data = new
                 {
@@ -106,7 +111,7 @@ namespace Senparc.Weixin.MP.CommonAPIs
         {
             return ApiHandlerWapper.TryCommonApi(accessToken =>
             {
-                var url = string.Format("https://api.weixin.qq.com/cgi-bin/menu/delconditional?access_token={0}", accessToken.AsUrlData());
+                var url = string.Format(Config.ApiMpHost + "/cgi-bin/menu/delconditional?access_token={0}", accessToken.AsUrlData());
 
                 var data = new
                 {
@@ -122,3 +127,4 @@ namespace Senparc.Weixin.MP.CommonAPIs
         /* 使用普通自定义菜单删除接口可以删除所有自定义菜单（包括默认菜单和全部个性化菜单），请见自定义菜单删除接口的说明。 */
     }
 }
+

@@ -1,7 +1,7 @@
 ﻿#region Apache License Version 2.0
 /*----------------------------------------------------------------
 
-Copyright 2017 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
+Copyright 2026 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
 except in compliance with the License. You may obtain a copy of the License at
@@ -19,7 +19,7 @@ Detail: https://github.com/JeffreySu/WeiXinMPSDK/blob/master/license.md
 #endregion Apache License Version 2.0
 
 /*----------------------------------------------------------------
-    Copyright (C) 2017 Senparc
+    Copyright (C) 2026 Senparc
     
     文件名：ProductApi.cs
     文件功能描述：微小店商品接口
@@ -36,6 +36,8 @@ Detail: https://github.com/JeffreySu/WeiXinMPSDK/blob/master/license.md
 */
 
 using System.Threading.Tasks;
+using Senparc.NeuChar;
+using Senparc.Weixin.CommonAPIs;
 using Senparc.Weixin.Entities;
 using Senparc.Weixin.MP.CommonAPIs;
 
@@ -44,6 +46,7 @@ namespace Senparc.Weixin.MP.AdvancedAPIs.MerChant
     /// <summary>
     /// 微小店库存接口
     /// </summary>
+    [NcApiBind(NeuChar.PlatformType.WeChat_OfficialAccount,true)]
     public static class StockApi
     {
         #region 同步方法
@@ -55,7 +58,7 @@ namespace Senparc.Weixin.MP.AdvancedAPIs.MerChant
         /// <returns></returns>
         public static WxJsonResult AddStock(string accessToken, AddStockData addStockData)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/stock/add?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/stock/add?access_token={0}";
 
             return CommonJsonSend.Send<WxJsonResult>(accessToken, urlFormat, addStockData);
         }
@@ -68,13 +71,12 @@ namespace Senparc.Weixin.MP.AdvancedAPIs.MerChant
         /// <returns></returns>
         public static WxJsonResult ReduceStock(string accessToken, ReduceStockData reduceStockData)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/stock/reduce?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/stock/reduce?access_token={0}";
 
             return CommonJsonSend.Send<WxJsonResult>(accessToken, urlFormat, reduceStockData);
         }
         #endregion
 
-#if !NET35 && !NET40
         #region 异步方法
         /// <summary>
         /// 【异步方法】增加库存
@@ -84,9 +86,9 @@ namespace Senparc.Weixin.MP.AdvancedAPIs.MerChant
         /// <returns></returns>
         public static async Task<WxJsonResult> AddStockAsync(string accessToken, AddStockData addStockData)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/stock/add?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/stock/add?access_token={0}";
 
-            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<WxJsonResult>(accessToken, urlFormat, addStockData);
+            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<WxJsonResult>(accessToken, urlFormat, addStockData).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -97,11 +99,11 @@ namespace Senparc.Weixin.MP.AdvancedAPIs.MerChant
         /// <returns></returns>
         public static async Task<WxJsonResult> ReduceStockAsync(string accessToken, ReduceStockData reduceStockData)
         {
-            var urlFormat = "https://api.weixin.qq.com/merchant/stock/reduce?access_token={0}";
+            var urlFormat = Config.ApiMpHost + "/merchant/stock/reduce?access_token={0}";
 
-            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<WxJsonResult>(accessToken, urlFormat, reduceStockData);
+            return await Senparc.Weixin.CommonAPIs.CommonJsonSend.SendAsync<WxJsonResult>(accessToken, urlFormat, reduceStockData).ConfigureAwait(false);
         }
         #endregion
-#endif
     }
 }
+

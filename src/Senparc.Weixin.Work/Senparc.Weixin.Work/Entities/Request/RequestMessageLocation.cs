@@ -1,5 +1,5 @@
 ﻿/*----------------------------------------------------------------
-    Copyright (C) 2017 Senparc
+    Copyright (C) 2026 Senparc
     
     文件名：RequestMessageLocation.cs
     文件功能描述：接收普通地理位置消息
@@ -11,9 +11,12 @@
     修改描述：整理接口
 ----------------------------------------------------------------*/
 
+using Senparc.NeuChar.Entities;
+using Senparc.NeuChar;
+
 namespace Senparc.Weixin.Work.Entities
 {
-    public class RequestMessageLocation : RequestMessageBase, IRequestMessageBase
+    public class RequestMessageLocation : WorkRequestMessageBase, IRequestMessageLocation
     {
         public override RequestMsgType MsgType
         {
@@ -32,3 +35,4 @@ namespace Senparc.Weixin.Work.Entities
         public string Label { get; set; }
     }
 }
+

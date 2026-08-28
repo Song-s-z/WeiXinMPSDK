@@ -1,7 +1,7 @@
 ﻿#region Apache License Version 2.0
 /*----------------------------------------------------------------
 
-Copyright 2017 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
+Copyright 2026 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
 except in compliance with the License. You may obtain a copy of the License at
@@ -19,13 +19,26 @@ Detail: https://github.com/JeffreySu/WeiXinMPSDK/blob/master/license.md
 #endregion Apache License Version 2.0
 
 /*----------------------------------------------------------------
-    Copyright (C) 2017 Senparc
+    Copyright (C) 2026 Senparc
     
     文件名：EncryptHelper.cs
     文件功能描述：加密、解密处理类
     
     
     创建标识：Senparc - 20170130
+
+    修改标识：Senparc - 20190402
+    修改描述：v3.3.10 添加“微信小程序运动步数解密”功能：EncryptHelper.DecryptRunData()
+
+    修改标识：Senparc - 20190727
+    修改描述：完善 AES_Decrypt，处理偶然出现的 adding is invalid and cannot be removed 问题（未发现规律）
+
+    修改标识：likui0623 - 20201013
+    修改描述：添加解密到实例信息方法
+
+    修改标识：Senparc - 20221129
+    修改描述：v3.15.10 EncryptHelper.DecodeEncryptedData() 方法添加 keySize 参数
+
 ----------------------------------------------------------------*/
 
 using System;
@@ -35,7 +48,8 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-#if NET45
+using Senparc.CO2NET.Helpers;
+#if NET462
 using System.Web.Script.Serialization;
 #endif
 using Senparc.Weixin.Exceptions;
@@ -76,8 +90,7 @@ namespace Senparc.Weixin.WxOpen.Helpers
         /// <returns></returns>
         public static string GetSignature(string rawData, string sessionKey)
         {
-            var signature =
-                Senparc.Weixin.MP.Helpers.SHA1UtilHelper.GetSha1(rawData + sessionKey);
+            var signature = Senparc.CO2NET.Helpers.EncryptHelper.GetSha1(rawData + sessionKey);
             //Senparc.Weixin.Helpers.EncryptHelper.SHA1_Encrypt(rawData + sessionKey);
             return signature;
         }
@@ -95,12 +108,12 @@ namespace Senparc.Weixin.WxOpen.Helpers
             var sessionBag = SessionContainer.GetSession(sessionId);
             if (sessionBag == null)
             {
-                throw new WxOpenException("SessionId无效");
+                throw new WxOpenException("SessionId无效（01）");
             }
 
             if (string.IsNullOrEmpty(sessionBag.SessionKey))
             {
-                throw new WxOpenException("SessionKey无效");
+                throw new WxOpenException("SessionKey无效（02）");
             }
 
             var signature = GetSignature(rawData, sessionBag.SessionKey);
@@ -113,14 +126,14 @@ namespace Senparc.Weixin.WxOpen.Helpers
 
         #region 私有方法
 
-        private static byte[] AES_Decrypt(String Input, byte[] Iv, byte[] Key)
+        private static byte[] AES_Decrypt(String Input, byte[] Iv, byte[] Key, int keySize = 128)
         {
-#if NET45
+#if NET462
             RijndaelManaged aes = new RijndaelManaged();
 #else
             SymmetricAlgorithm aes = Aes.Create();
 #endif
-            aes.KeySize = 128;//原始：256
+            aes.KeySize = keySize;//原始：256
             aes.BlockSize = 128;
             aes.Mode = CipherMode.CBC;
             aes.Padding = PaddingMode.PKCS7;
@@ -128,20 +141,62 @@ namespace Senparc.Weixin.WxOpen.Helpers
             aes.IV = Iv;
             var decrypt = aes.CreateDecryptor(aes.Key, aes.IV);
             byte[] xBuff = null;
-            using (var ms = new MemoryStream())
-            {
-                using (var cs = new CryptoStream(ms, decrypt, CryptoStreamMode.Write))
-                {
-                    //        cs.Read(decryptBytes, 0, decryptBytes.Length);
-                    //        cs.Close();
-                    //        ms.Close();
 
-                    byte[] xXml = Convert.FromBase64String(Input);
-                    byte[] msg = new byte[xXml.Length + 32 - xXml.Length % 32];
-                    Array.Copy(xXml, msg, xXml.Length);
-                    cs.Write(xXml, 0, xXml.Length);
+            //using (ICryptoTransform decrypt = aes.CreateDecryptor(aes.Key, aes.IV) /*aes.CreateDecryptor()*/)
+            //{
+            //    var src = Convert.FromBase64String(Input); 
+            //    byte[] dest = decrypt.TransformFinalBlock(src, 0, src.Length);
+            //    return dest;
+            //    //return Encoding.UTF8.GetString(dest);
+            //}
+
+
+            try
+            {
+                using (var ms = new MemoryStream())
+                {
+                    using (var cs = new CryptoStream(ms, decrypt, CryptoStreamMode.Write))
+                    {
+                        //cs.Read(decryptBytes, 0, decryptBytes.Length);
+                        //cs.Close();
+                        //ms.Close();
+
+                        //cs.FlushFinalBlock();//用于解决第二次获取小程序Session解密出错的情况
+
+
+                        byte[] xXml = Convert.FromBase64String(Input);
+                        byte[] msg = new byte[xXml.Length + 32 - xXml.Length % 32];
+                        Array.Copy(xXml, msg, xXml.Length);
+                        cs.Write(xXml, 0, xXml.Length);
+                    }
+                    //cs.Dispose();
+                    xBuff = decode2(ms.ToArray());
                 }
-                xBuff = decode2(ms.ToArray());
+            }
+            catch (System.Security.Cryptography.CryptographicException e)
+            {
+                //Padding is invalid and cannot be removed.
+                Console.WriteLine("===== CryptographicException =====");
+
+                using (var ms = new MemoryStream())
+                {
+                    //cs 不自动释放，用于避免“Padding is invalid and cannot be removed”的错误    —— 2019.07.27 Jeffrey
+                    var cs = new CryptoStream(ms, decrypt, CryptoStreamMode.Write);
+                    {
+                        //cs.Read(decryptBytes, 0, decryptBytes.Length);
+                        //cs.Close();
+                        //ms.Close();
+
+                        //cs.FlushFinalBlock();//用于解决第二次获取小程序Session解密出错的情况
+
+                        byte[] xXml = Convert.FromBase64String(Input);
+                        byte[] msg = new byte[xXml.Length + 32 - xXml.Length % 32];
+                        Array.Copy(xXml, msg, xXml.Length);
+                        cs.Write(xXml, 0, xXml.Length);
+                    }
+                    //cs.Dispose();
+                    xBuff = decode2(ms.ToArray());
+                }
             }
             return xBuff;
         }
@@ -158,6 +213,7 @@ namespace Senparc.Weixin.WxOpen.Helpers
             return res;
         }
 
+
         #endregion
 
         /// <summary>
@@ -166,14 +222,15 @@ namespace Senparc.Weixin.WxOpen.Helpers
         /// <param name="sessionKey">储存在 SessionBag 中的当前用户 会话 SessionKey</param>
         /// <param name="encryptedData">接口返回数据中的 encryptedData 参数</param>
         /// <param name="iv">接口返回数据中的 iv 参数，对称解密算法初始向量</param>
+        /// <param name="keySize">默认 128，</param>
         /// <returns></returns>
-        public static string DecodeEncryptedData(string sessionKey, string encryptedData, string iv)
+        public static string DecodeEncryptedData(string sessionKey, string encryptedData, string iv, int keySize = 128)
         {
-            var aesCipher = Convert.FromBase64String(encryptedData);
+            //var aesCipher = Convert.FromBase64String(encryptedData);
             var aesKey = Convert.FromBase64String(sessionKey);
             var aesIV = Convert.FromBase64String(iv);
 
-            var result = AES_Decrypt(encryptedData, aesIV, aesKey);
+            var result = AES_Decrypt(encryptedData, aesIV, aesKey, keySize);
             var resultStr = Encoding.UTF8.GetString(result);
             return resultStr;
         }
@@ -203,45 +260,6 @@ namespace Senparc.Weixin.WxOpen.Helpers
             return resultStr;
         }
 
-        /// <summary>
-        /// 解密UserInfo消息（通过SessionId获取）
-        /// </summary>
-        /// <param name="sessionId"></param>
-        /// <param name="encryptedData"></param>
-        /// <param name="iv"></param>
-        /// <exception cref="WxOpenException">当SessionId或SessionKey无效时抛出异常</exception>
-        /// <returns></returns>
-        public static DecodedUserInfo DecodeUserInfoBySessionId(string sessionId, string encryptedData, string iv)
-        {
-            var jsonStr = DecodeEncryptedDataBySessionId(sessionId, encryptedData, iv);
-#if NET45
-            JavaScriptSerializer js = new JavaScriptSerializer();
-            var userInfo = js.Deserialize<DecodedUserInfo>(jsonStr);
-#else
-            var userInfo = Newtonsoft.Json.JsonConvert.DeserializeObject<DecodedUserInfo>(jsonStr);
-#endif
-            return userInfo;
-        }
-
-        /// <summary>
-        /// 解密手机号
-        /// </summary>
-        /// <param name="encryptedData"></param>
-        /// <param name="iv"></param>
-        /// <returns></returns>
-        public static DecodedPhoneNumber DecryptPhoneNumber(string sessionId, string encryptedData, string iv)
-        {
-            var jsonStr = DecodeEncryptedDataBySessionId(sessionId, encryptedData, iv);
-
-#if NET45
-            JavaScriptSerializer js = new JavaScriptSerializer();
-            var phoneNumber = js.Deserialize<DecodedPhoneNumber>(jsonStr);
-#else
-            var phoneNumber = Newtonsoft.Json.JsonConvert.DeserializeObject<DecodedPhoneNumber>(jsonStr);
-#endif
-            return phoneNumber;
-
-        }
 
         /// <summary>
         /// 检查解密消息水印
@@ -258,6 +276,106 @@ namespace Senparc.Weixin.WxOpen.Helpers
             return entity.watermark.appid == appId;
         }
 
+        #region 解密实例信息
+
+        /// <summary>
+        /// 解密到实例信息
+        /// </summary>
+        /// <typeparam name="T">DecodeEntityBase</typeparam>
+        /// <param name="sessionId"></param>
+        /// <param name="encryptedData"></param>
+        /// <param name="iv"></param>
+        /// <returns></returns>
+        public static T DecodeEncryptedDataToEntity<T>(string sessionId, string encryptedData, string iv)
+        where T : DecodeEntityBase
+        {
+            var jsonStr = DecodeEncryptedDataBySessionId(sessionId, encryptedData, iv);
+
+            //Console.WriteLine("===== jsonStr =====");
+            //Console.WriteLine(jsonStr);
+            //Console.WriteLine();
+
+            var entity = SerializerHelper.GetObject<T>(jsonStr);
+            return entity;
+        }
+        /// <summary>
+        /// 解密到实例信息
+        /// </summary>
+        /// <typeparam name="T">DecodeEntityBase</typeparam>
+        /// <param name="sessionKey"></param>
+        /// <param name="encryptedData"></param>
+        /// <param name="iv"></param>
+        /// <returns></returns>
+        public static T DecodeEncryptedDataToEntityEasy<T>(string sessionKey, string encryptedData, string iv)
+       where T : DecodeEntityBase
+        {
+            var jsonStr = DecodeEncryptedData(sessionKey, encryptedData, iv);
+
+            //Console.WriteLine("===== jsonStr =====");
+            //Console.WriteLine(jsonStr);
+            //Console.WriteLine();
+
+            var entity = SerializerHelper.GetObject<T>(jsonStr);
+            return entity;
+        }
+
+        /// <summary>
+        /// 解密UserInfo消息（通过SessionId获取）
+        /// </summary>
+        /// <param name="sessionId"></param>
+        /// <param name="encryptedData"></param>
+        /// <param name="iv"></param>
+        /// <exception cref="WxOpenException">当SessionId或SessionKey无效时抛出异常</exception>
+        /// <returns></returns>
+        public static DecodedUserInfo DecodeUserInfoBySessionId(string sessionId, string encryptedData, string iv)
+        {
+            return DecodeEncryptedDataToEntity<DecodedUserInfo>(sessionId, encryptedData, iv);
+        }
+
+        /// <summary>
+        /// 解密手机号
+        /// </summary>
+        /// <param name="encryptedData"></param>
+        /// <param name="iv"></param>
+        /// <returns></returns>
+        public static DecodedPhoneNumber DecryptPhoneNumber(string sessionId, string encryptedData, string iv)
+        {
+            return DecodeEncryptedDataToEntity<DecodedPhoneNumber>(sessionId, encryptedData, iv);
+        }
+        /// <summary>
+        /// 解密手机号(根据sessionKey解密)
+        /// </summary>
+        /// <param name="sessionKey"></param>
+        /// <param name="encryptedData"></param>
+        /// <param name="iv"></param>
+        /// <returns></returns>
+        public static DecodedPhoneNumber DecryptPhoneNumberBySessionKey(string sessionKey, string encryptedData, string iv)
+        {
+            //var resultStr = DecodeEncryptedData(sessionKey, encryptedData, iv);
+
+            //var entity = SerializerHelper.GetObject<DecodedPhoneNumber>(resultStr);
+            //return entity;
+
+            return DecodeEncryptedDataToEntityEasy<DecodedPhoneNumber>(sessionKey, encryptedData, iv);
+        }
+
+        /// <summary>
+        /// 解密微信小程序运动步数
+        /// 2019-04-02
+        /// </summary>
+        /// <param name="sessionId"></param>
+        /// <param name="encryptedData"></param>
+        /// <param name="iv"></param>
+        /// <returns></returns>
+        public static DecodedRunData DecryptRunData(string sessionId, string encryptedData, string iv)
+        {
+            return DecodeEncryptedDataToEntity<DecodedRunData>(sessionId, encryptedData, iv);
+        }
+
+
+        #endregion
+
         #endregion
     }
 }
+

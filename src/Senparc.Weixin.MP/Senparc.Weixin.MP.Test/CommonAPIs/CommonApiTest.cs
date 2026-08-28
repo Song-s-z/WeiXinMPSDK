@@ -1,7 +1,7 @@
 ﻿#region Apache License Version 2.0
 /*----------------------------------------------------------------
 
-Copyright 2017 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
+Copyright 2026 Jeffrey Su & Suzhou Senparc Network Technology Co.,Ltd.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
 except in compliance with the License. You may obtain a copy of the License at
@@ -34,13 +34,24 @@ using Senparc.Weixin.MP.AdvancedAPIs.User;
 using Senparc.Weixin.MP.CommonAPIs;
 using Senparc.Weixin.MP.Containers;
 using Senparc.Weixin.MP.Entities;
-using Senparc.Weixin.Threads;
+using Senparc.CO2NET.Threads;
+using Senparc.CO2NET.Cache;
+using Senparc.CO2NET.Cache.Redis;
+using Senparc.CO2NET.RegisterServices;
+using Senparc.CO2NET;
+using Senparc.Weixin.Entities;
+#if NETCOREAPP2_0_OR_GREATER || NET6_0_OR_GREATER
+using Microsoft.AspNetCore.Hosting;
+#endif
+using Moq;
+using Senparc.WeixinTests;
+using Senparc.CO2NET.Extensions;
 
 namespace Senparc.Weixin.MP.Test.CommonAPIs
 {
     //已通过测试
-    //[TestClass]
-    public partial class CommonApiTest
+    [TestClass]
+    public partial class CommonApiTest : BaseTest
     {
         private dynamic _appConfig;
         protected dynamic AppConfig
@@ -49,13 +60,26 @@ namespace Senparc.Weixin.MP.Test.CommonAPIs
             {
                 if (_appConfig == null)
                 {
-                    if (File.Exists("../../Config/test.config"))
+#if NETCOREAPP2_0_OR_GREATER || NET6_0_OR_GREATER
+                    var filePath = Path.Combine(Senparc.CO2NET.Config.RootDirectoryPath, "Config",/*"../../../Config"*/ "test.config");
+#else
+                    var filePath = "../../Config/test.config";
+#endif
+                    if (File.Exists(filePath))
                     {
-                        var doc = XDocument.Load("../../Config/test.config");
+#if NETCOREAPP2_0_OR_GREATER || NET6_0_OR_GREATER
+                        //var stream = new FileStream(filePath, FileMode.Open);
+                        var doc = XDocument.Load(filePath);
+                        //stream.Dispose();
+#else
+                        var doc = XDocument.Load(filePath);
+#endif
                         _appConfig = new
                         {
                             AppId = doc.Root.Element("AppId").Value,
                             Secret = doc.Root.Element("Secret").Value,
+                            WxOpenAppId = doc.Root.Element("WxOpenAppId").Value,
+                            WxOpenSecret = doc.Root.Element("WxOpenSecret").Value,
                             MchId = doc.Root.Element("MchId").Value,
                             TenPayKey = doc.Root.Element("TenPayKey").Value,
                             TenPayCertPath = doc.Root.Element("TenPayCertPath").Value,
@@ -70,6 +94,8 @@ namespace Senparc.Weixin.MP.Test.CommonAPIs
                         {
                             AppId = "YourAppId", //换成你的信息
                             Secret = "YourSecret",//换成你的信息
+                            WxOpenAppId = "YourWxOpenAppId",//换成你的信息
+                            WxOpenSecret = "YourWxOpenSecret",//换成你的信息
                             MchId = "YourMchId",//换成你的信息
                             TenPayKey = "YourTenPayKey",//换成你的信息
                             TenPayCertPath = "YourTenPayCertPath",//换成你的信息
@@ -90,6 +116,17 @@ namespace Senparc.Weixin.MP.Test.CommonAPIs
         protected string _appSecret
         {
             get { return AppConfig.Secret; }
+        }
+
+
+        protected string _wxOpenAppId
+        {
+            get { return AppConfig.WxOpenAppId; }
+        }
+
+        protected string _wxOpenAppSecret
+        {
+            get { return AppConfig.WxOpenSecret; }
         }
 
         protected string _mchId
@@ -117,15 +154,16 @@ namespace Senparc.Weixin.MP.Test.CommonAPIs
         //    get { return AppConfig.WxOpenSecret; }
         //}
 
-        protected readonly bool _useRedis = true;//是否使用Reids
+        protected readonly bool _useRedis = false;//是否使用Reids
 
         /* 由于获取accessToken有次数限制，为了节约请求，
-        * 可以到 http://sdk.weixin.senparc.com/Menu 获取Token之后填入下方，
+        * 可以到 https://sdk.weixin.senparc.com/Menu 获取Token之后填入下方，
         * 使用当前可用Token直接进行测试。
         */
         private string _access_token = null;
 
-        protected string _testOpenId = "olPjZjsXuQPJoV0HlruZkNzKc91E";//换成实际关注者的OpenId
+        //protected string _testOpenId = "olPjZjsXuQPJoV0HlruZkNzKc91E";//换成实际关注者的OpenId
+        protected string _testOpenId = "oxRg0uLsnpHjb8o93uVnwMK_WAVw";//换成实际关注者的OpenId
 
         /// <summary>
         /// 自动获取Openid
@@ -169,7 +207,10 @@ namespace Senparc.Weixin.MP.Test.CommonAPIs
         }
 
 
-        public CommonApiTest()
+        public CommonApiTest() : this(true)
+        { }
+
+        public CommonApiTest(bool registerMpAccount)
         {
             if (_useRedis)
             {
@@ -178,20 +219,23 @@ namespace Senparc.Weixin.MP.Test.CommonAPIs
                 CacheStrategyFactory.RegisterObjectCacheStrategy(() => RedisObjectCacheStrategy.Instance);//Redis
             }
 
-            //全局只需注册一次
-            AccessTokenContainer.Register(_appId, _appSecret);
+            if (registerMpAccount)
+            {
+                //全局只需注册一次
+                AccessTokenContainer.Register(_appId, _appSecret);
 
-            ////注册小程序
-            //if (!string.IsNullOrEmpty(_wxOpenAppId))
-            //{
-            //    AccessTokenContainer.Register(_wxOpenAppId, _wxOpenSecret);
-            //}
+                ////注册小程序
+                //if (!string.IsNullOrEmpty(_wxOpenAppId))
+                //{
+                //    AccessTokenContainer.Register(_wxOpenAppId, _wxOpenSecret);
+                //}
 
-            ThreadUtility.Register();
+                //ThreadUtility.Register();
 
-            //v13.3.0之后，JsApiTicketContainer已经合并入AccessTokenContainer，已经不需要单独注册
-            ////全局只需注册一次
-            //JsApiTicketContainer.Register(_appId, _appSecret);
+                //v13.3.0之后，JsApiTicketContainer已经合并入AccessTokenContainer，已经不需要单独注册
+                ////全局只需注册一次
+                //JsApiTicketContainer.Register(_appId, _appSecret);
+            }
         }
 
         [TestMethod]
@@ -224,7 +268,7 @@ namespace Senparc.Weixin.MP.Test.CommonAPIs
             try
             {
                 var accessToken = AccessTokenContainer.GetAccessToken(_appId);
-                var result = CommonApi.GetUserInfo(accessToken, _testOpenId);
+                var result = UserApi.Info(accessToken, _testOpenId);
                 Assert.IsNotNull(result);
             }
             catch (Exception ex)
@@ -241,5 +285,17 @@ namespace Senparc.Weixin.MP.Test.CommonAPIs
             Assert.IsTrue(tokenResult.ticket.Length > 0);
             Assert.IsTrue(tokenResult.expires_in > 0);
         }
+
+
+        [TestMethod()]
+        public void GetStableAccessTokenTest()
+        {
+            var tokenResult = CommonApi.GetStableAccessToken(_appId, _appSecret);
+            Assert.IsNotNull(tokenResult);
+            Assert.IsTrue(tokenResult.access_token.Length > 0);
+            Assert.IsTrue(tokenResult.expires_in > 0);
+            Console.WriteLine(tokenResult.ToJson(true));
+        }
     }
 }
+
